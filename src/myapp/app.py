@@ -2,13 +2,16 @@ import tkinter as tk
 from tkinter import scrolledtext
 import time
 from myapp.tasks import long_task
+import threading
+import concurrent.futures
+
 
 class MyApp:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Pratique Threading")
         self.root.geometry("600x300")
-        
+        self.threadpool = concurrent.futures.ThreadPoolExecutor(max_workers=3)       
         # Compteur de tâches
         self.task_counter = 0
         
@@ -79,16 +82,22 @@ class MyApp:
         # Mettre à jour le compteur
         self.task_counter += 1
         task_id = self.task_counter
-        
+
         # Logger le début de la tâche
         self.log_message(f"Début de la tâche #{task_id}")
-        
-        # Exécuter la tâche longue
-        result = long_task(task_id=task_id)
-        self.log_message(f"Résultat : {result}")
-        
-        # Réactiver le bouton
-        self.start_button.config(state=tk.NORMAL)
+    
+        def after_exec(future):
+            try:
+                r = future.result()
+                self.root.after(0, lambda: self.log_message(f"Résultat : {r}"))
+            except Exception as e:
+                self.root.after(0, lambda: self.log_message(f"Error : {e}"))
+            # Réactiver le bouton
+            self.root.after(0, lambda: self.start_button.config(state=tk.NORMAL))
+
+        future = self.threadpool.submit(long_task, task_id=task_id)
+        future.add_done_callback(after_exec)
+
 
 
 
